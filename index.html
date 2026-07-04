@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>Borç Takip</title>
+<meta name="theme-color" content="#12151b">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Borç Takip">
+<style>
+  :root{
+    --bg: #12151b;
+    --surface: #1c2028;
+    --surface-2: #262c37;
+    --border: #313846;
+    --text: #edeef2;
+    --text-dim: #8b93a5;
+    --accent: #e3a34e;      /* kredi kartı / altın vurgu */
+    --accent-2: #6f8fd6;    /* ek hesap/taksit vurgusu */
+    --positive: #4ade80;
+    --negative: #f87171;
+    --radius: 16px;
+    --font-display: ui-serif, Georgia, 'Times New Roman', serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--text); font-family:var(--font-body); font-variant-numeric: tabular-nums;}
+  body{ padding-bottom: env(safe-area-inset-bottom); }
+  #app{ min-height:100vh; display:flex; flex-direction:column; }
+
+  .topbar{ position:sticky; top:0; z-index:20; background:rgba(18,21,27,0.92); backdrop-filter: blur(10px); border-bottom:1px solid var(--border); padding-top: env(safe-area-inset-top); }
+  .topbar-inner{ display:flex; align-items:center; justify-content:space-between; padding:14px 18px; }
+  .topbar-inner h1{ font-family:var(--font-display); font-weight:600; font-size:1.3rem; margin:0; letter-spacing:0.2px; }
+  .icon-btn{ background:var(--surface-2); border:1px solid var(--border); color:var(--text); width:38px; height:38px; border-radius:50%; font-size:1rem; display:flex; align-items:center; justify-content:center; }
+
+  main#content{ flex:1; padding: 16px 14px 100px; max-width:640px; width:100%; margin:0 auto; }
+
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius: var(--radius); padding:18px; margin-bottom:16px; }
+  .card-header h2{ font-family:var(--font-display); font-size:1.05rem; font-weight:600; margin:0 0 14px; color:var(--text); }
+  .card-header-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; }
+  .card-header-row h2{ font-family:var(--font-display); font-size:1.05rem; font-weight:600; margin:0; }
+  .input-select-sm{ width:auto; max-width:170px; padding:7px 8px; font-size:0.8rem; }
+  .summary-line{ display:flex; justify-content:space-between; align-items:baseline; padding:8px 0; border-bottom:1px solid var(--border); font-size:0.88rem; }
+  .summary-line span{ color:var(--text-dim); }
+  .summary-line b{ font-weight:700; }
+  .summary-final{ border-bottom:none; margin-top:2px; padding-top:14px; border-top:1px solid var(--border); }
+  .summary-final span{ color:var(--text); font-weight:700; text-transform:uppercase; font-size:0.76rem; letter-spacing:0.4px; }
+  .summary-final b{ font-family:var(--font-display); font-size:1.35rem; }
+
+  .total-banner{ text-align:center; background: linear-gradient(155deg, var(--surface) 0%, #202531 100%); }
+  .banner-label{ font-size:0.75rem; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-dim); margin-bottom:6px; }
+  .banner-amount{ font-family:var(--font-display); font-size:2.3rem; font-weight:700; margin-bottom:14px; }
+  .banner-breakdown{ display:flex; align-items:center; justify-content:center; gap:20px; }
+  .breakdown-legend{ text-align:left; display:flex; flex-direction:column; gap:8px; }
+  .legend-item{ font-size:0.82rem; color:var(--text-dim); display:flex; align-items:center; gap:7px; }
+  .legend-item b{ color:var(--text); font-weight:600; margin-left:2px; }
+  .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .dot-accent{ background:var(--accent); }
+  .dot-accent2{ background:var(--accent-2); }
+
+  .list{ display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+  .fx-row{ display:grid; grid-template-columns: 1fr 110px 32px; gap:8px; align-items:center; }
+  .cc-card{ background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:10px; margin-bottom:8px; }
+  .cc-row-top{ display:grid; grid-template-columns: 1fr 100px 32px; gap:8px; align-items:center; margin-bottom:10px; }
+  .cc-row-bottom{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .segmented-sm{ display:flex; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:2px; gap:2px; }
+  .seg-btn-sm{ background:none; border:none; color:var(--text-dim); padding:5px 9px; border-radius:6px; font-weight:600; font-size:0.72rem; }
+  .seg-btn-sm.active{ background:var(--accent); color:#1a1406; }
+  .cc-custom-percent{ width:50px !important; margin-left:2px; padding:5px 6px !important; font-size:0.75rem; }
+  .cc-min{ font-size:0.78rem; color:var(--text-dim); white-space:nowrap; }
+  .cc-min b{ color:var(--accent); font-weight:700; }
+
+  input, select{ font-family:var(--font-body); background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:9px 10px; font-size:0.92rem; width:100%; }
+  input:focus, select:focus{ outline:none; border-color:var(--accent-2); }
+  .input-number, .input-year, .input-number-small{ text-align:right; }
+  .input-text{ text-align:left; }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
+
+  .row-delete{ background:none; border:none; color:var(--text-dim); font-size:1.2rem; width:32px; height:32px; border-radius:50%; }
+  .row-delete:active{ background:var(--surface-2); color:var(--negative); }
+
+  .add-row-btn, .btn-small{ background:var(--surface-2); border:1px dashed var(--border); color:var(--accent-2); border-radius:10px; padding:9px 12px; font-size:0.85rem; font-weight:600; width:100%; margin-top:2px; }
+  .add-inline{ display:flex; gap:8px; margin:12px 0; align-items:center; }
+  .add-inline .btn-small{ width:auto; white-space:nowrap; flex-shrink:0; }
+  .input-year{ width:78px; flex-shrink:0; }
+  .input-select{ flex:1; }
+
+  .total-row{ display:flex; justify-content:space-between; align-items:baseline; padding-top:12px; margin-top:8px; border-top:1px solid var(--border); font-weight:700; }
+  .total-row span:first-child{ color:var(--text-dim); font-weight:600; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.5px; }
+  .total-amount{ font-family:var(--font-display); font-size:1.2rem; }
+  .total-amount.accent{ color:var(--accent); }
+
+  .chip-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+  .chip{ background:var(--surface-2); border:1px solid var(--border); border-radius:20px; padding:6px 8px 6px 12px; font-size:0.82rem; display:flex; align-items:center; gap:6px; color:var(--accent-2); font-weight:600; }
+  .chip-remove{ background:none; border:none; color:var(--text-dim); font-size:1rem; width:18px; height:18px; line-height:1; }
+
+  .table-scroll{ overflow-x:auto; margin: 0 -18px; padding: 0 18px; -webkit-overflow-scrolling:touch; }
+  table.data-table{ border-collapse:collapse; width:100%; min-width:100%; }
+  .data-table th, .data-table td{ padding:9px 10px; text-align:right; font-size:0.85rem; white-space:nowrap; border-bottom:1px solid var(--border); }
+  .data-table th{ color:var(--text-dim); font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.4px; }
+  .data-table th.sticky-col, .data-table td.sticky-col{ text-align:left; position:sticky; left:0; background:var(--surface); z-index:1; }
+  .data-table .cell-input{ width:92px; text-align:right; padding:6px 8px; }
+  .data-table .sal-brut, .data-table .sal-net{ width:128px; }
+  .data-table tfoot td{ font-weight:700; border-top:2px solid var(--border); border-bottom:none; color:var(--accent); }
+  .data-table tfoot td.sticky-col{ color:var(--text); }
+  .readonly-cell{ color:var(--text-dim); }
+  .positive{ color:var(--positive) !important; font-weight:700; }
+  .negative{ color:var(--negative) !important; font-weight:700; }
+
+  .percent-selector{ margin-bottom:16px; }
+  .percent-label{ font-size:0.82rem; color:var(--text-dim); display:block; margin-bottom:8px; }
+  .segmented{ display:flex; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:3px; gap:3px; }
+  .seg-btn{ flex:1; background:none; border:none; color:var(--text-dim); padding:8px 0; border-radius:8px; font-weight:600; font-size:0.85rem; }
+  .seg-btn.active{ background:var(--accent); color:#1a1406; }
+  #customPercentInput{ margin-top:8px; }
+
+  .empty-state{ text-align:center; color:var(--text-dim); font-size:0.85rem; padding:18px 0; }
+
+  .tabbar{ position:sticky; bottom:0; z-index:20; display:flex; background:rgba(18,21,27,0.95); backdrop-filter: blur(10px); border-top:1px solid var(--border); padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); }
+  .tab-btn{ flex:1; background:none; border:none; color:var(--text-dim); display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 0; font-size:0.68rem; font-weight:600; border-radius:12px; }
+  .tab-btn span{ letter-spacing:0.2px; }
+  .tab-btn.active{ color:var(--accent); }
+
+  .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:flex-end; justify-content:center; z-index:50; }
+  .modal-overlay.hidden{ display:none; }
+  .modal{ background:var(--surface); border:1px solid var(--border); border-radius: 20px 20px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom)); width:100%; max-width:640px; display:flex; flex-direction:column; gap:10px; }
+  .modal h2{ font-family:var(--font-display); margin:0 0 4px; }
+  .modal-desc{ color:var(--text-dim); font-size:0.85rem; margin:0 0 10px; }
+  .btn{ border-radius:12px; padding:13px; font-size:0.92rem; font-weight:700; border:1px solid var(--border); text-align:center; }
+  .btn-primary{ background:var(--accent); color:#1a1406; border:none; }
+  .btn-secondary{ background:var(--surface-2); color:var(--text); }
+  .btn-danger{ background:var(--surface-2); color:var(--negative); }
+  .btn-ghost{ background:none; color:var(--text-dim); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <h1 id="pageTitle">Hesap/Kredi Taksit</h1>
+      <button class="icon-btn" id="settingsBtn" aria-label="Ayarlar">⚙</button>
+    </div>
+  </header>
+  <main id="content"></main>
+  <nav class="tabbar">
+    <button class="tab-btn active" data-tab="debt">💳<span>Hesap/Kredi</span></button>
+    <button class="tab-btn" data-tab="fixed">🏠<span>Sabit Giderler</span></button>
+    <button class="tab-btn" data-tab="salary">💰<span>Maaş-Gider</span></button>
+  </nav>
+</div>
+
+<div class="modal-overlay hidden" id="settingsModal">
+  <div class="modal">
+    <h2>Ayarlar</h2>
+    <p class="modal-desc">Verilerin sadece bu cihazda saklanır. Değişiklik yapmadan önce yedek almanı öneririz.</p>
+    <button class="btn btn-primary" id="exportBtn">📥 Yedek İndir</button>
+    <label class="btn btn-secondary" for="importFile" style="cursor:pointer;">📤 Yedek Yükle</label>
+    <input type="file" id="importFile" accept="application/json" hidden>
+    <button class="btn btn-danger" id="resetBtn">🗑 Tüm Verileri Sıfırla</button>
+    <button class="btn btn-ghost" id="closeModal">Kapat</button>
+  </div>
+</div>
+
+<script>
+const LS_KEY = 'borcTakipData_v1';
+const monthsTR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+let currentTab = 'debt';
+let state;
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function defaultState(){
+  return {
+    fixedExpenses: [
+      {id: uid(), name: 'Kira', amount: 0},
+      {id: uid(), name: 'Aidat', amount: 0},
+      {id: uid(), name: 'Tatil Fonu Gideri', amount: 0},
+      {id: uid(), name: 'Diğer Gider', amount: 0},
+    ],
+    installmentBanks: [
+      {id: uid(), name: 'Vakıf Ek Hesap'},
+      {id: uid(), name: 'İş Ek Hesap'},
+      {id: uid(), name: 'Enpara Ek'},
+    ],
+    installmentMonths: [],
+    creditCards: [
+      {id: uid(), name: 'Vakıfbank Kredi Kartı', totalDebt: 0, percent: 20, isCustom: false},
+      {id: uid(), name: 'Garanti Bankası', totalDebt: 0, percent: 20, isCustom: false},
+      {id: uid(), name: 'Enpara', totalDebt: 0, percent: 20, isCustom: false},
+      {id: uid(), name: 'İş Bankası', totalDebt: 0, percent: 20, isCustom: false},
+    ],
+    salaryMonths: [],
+  };
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw) return migrateState(JSON.parse(raw));
+  }catch(e){ console.error('Yükleme hatası', e); }
+  return defaultState();
+}
+function migrateState(s){
+  // eski sürümde tüm kartlar için ortak tek bir asgari oran vardı; artık her kart kendi oranını taşıyor
+  const legacyPercent = Number(s.asgariPercent) || 20;
+  (s.creditCards||[]).forEach(c=>{
+    if(c.percent===undefined || c.percent===null) c.percent = legacyPercent;
+  });
+  delete s.asgariPercent;
+  return s;
+}
+function saveState(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  }catch(e){ console.error('Kaydetme hatası (bu ortamda depolama kısıtlı olabilir)', e); }
+}
+
+function fmt(n){
+  n = Number(n)||0;
+  const neg = n < 0;
+  const abs = Math.round(Math.abs(n));
+  return (neg?'-':'') + '₺' + abs.toLocaleString('tr-TR');
+}
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+function formatMonthLabel(year, month){ return monthsTR[month] + ' ' + year; }
+function sortByDate(a,b){ return (a.year*12+a.month) - (b.year*12+b.month); }
+
+/* ---------- HESAPLAMALAR ---------- */
+function computeFixedTotal(){
+  return state.fixedExpenses.reduce((s,f)=> s + (Number(f.amount)||0), 0);
+}
+function computeInstallmentTotals(){
+  const perBank = {};
+  state.installmentBanks.forEach(b=> perBank[b.id]=0);
+  state.installmentMonths.forEach(m=>{
+    state.installmentBanks.forEach(b=>{
+      perBank[b.id] += Number(m.values[b.id])||0;
+    });
+  });
+  const grandTotal = Object.values(perBank).reduce((s,v)=>s+v,0);
+  return {perBank, grandTotal};
+}
+function computeCreditCardTotals(){
+  const totalDebt = state.creditCards.reduce((s,c)=> s + (Number(c.totalDebt)||0), 0);
+  const totalMin = state.creditCards.reduce((s,c)=> s + (Number(c.totalDebt)||0) * (Number(c.percent)||0) / 100, 0);
+  return {totalDebt, totalMin};
+}
+
+/* ---------- SEKME GEÇİŞİ ---------- */
+function switchTab(tab){
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab===tab));
+  const titles = {fixed:'Sabit Giderler', debt:'Hesap/Kredi Taksit', salary:'Öngörülen Maaş-Gider'};
+  document.getElementById('pageTitle').textContent = titles[tab];
+  if(tab==='fixed') renderFixedTab();
+  else if(tab==='debt') renderDebtTab();
+  else renderSalaryTab();
+}
+
+/* ================= SABİT GİDERLER ================= */
+function renderFixedTab(){
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <section class="card">
+      <div class="card-header"><h2>Aylık Sabit Giderler</h2></div>
+      <div class="list" id="fixedList">
+        ${state.fixedExpenses.map(renderFixedRow).join('') || '<div class="empty-state">Henüz gider eklenmedi.</div>'}
+      </div>
+      <button class="add-row-btn" id="addFixedBtn">+ Yeni Gider Ekle</button>
+      <div class="total-row"><span>TOPLAM</span><span id="fixedTotal" class="total-amount">${fmt(computeFixedTotal())}</span></div>
+    </section>
+  `;
+  bindFixedEvents();
+}
+function renderFixedRow(f){
+  return `<div class="fx-row" data-id="${f.id}">
+    <input type="text" class="input-text fx-name" data-id="${f.id}" placeholder="Gider adı" value="${escapeHtml(f.name)}">
+    <input type="number" class="input-number fx-amount" data-id="${f.id}" value="${f.amount}">
+    <button class="row-delete" data-delete-fixed="${f.id}">×</button>
+  </div>`;
+}
+function bindFixedEvents(){
+  document.getElementById('addFixedBtn').onclick = ()=>{
+    state.fixedExpenses.push({id: uid(), name:'', amount:0});
+    saveState();
+    renderFixedTab();
+  };
+  document.querySelectorAll('.fx-name').forEach(inp=>{
+    inp.oninput = e=>{
+      const f = state.fixedExpenses.find(x=>x.id===e.target.dataset.id);
+      f.name = e.target.value;
+      saveState();
+    };
+  });
+  document.querySelectorAll('.fx-amount').forEach(inp=>{
+    inp.oninput = e=>{
+      const f = state.fixedExpenses.find(x=>x.id===e.target.dataset.id);
+      f.amount = parseFloat(e.target.value)||0;
+      saveState();
+      document.getElementById('fixedTotal').textContent = fmt(computeFixedTotal());
+    };
+  });
+  document.querySelectorAll('[data-delete-fixed]').forEach(btn=>{
+    btn.onclick = e=>{
+      state.fixedExpenses = state.fixedExpenses.filter(x=>x.id!==e.target.dataset.deleteFixed);
+      saveState();
+      renderFixedTab();
+    };
+  });
+}
+
+/* ================= HESAP / KREDİ TAKSİT ================= */
+function ringSVG(instTotal, ccTotal){
+  const total = instTotal+ccTotal;
+  const instPct = total>0 ? instTotal/total : 0.5;
+  const r=40, c=2*Math.PI*r;
+  const instLen = c*instPct;
+  return `<svg viewBox="0 0 100 100" width="88" height="88">
+    <circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--surface-2)" stroke-width="12"/>
+    <circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--accent-2)" stroke-width="12"
+      stroke-dasharray="${instLen} ${c-instLen}" transform="rotate(-90 50 50)" stroke-linecap="round"/>
+    <circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--accent)" stroke-width="12"
+      stroke-dasharray="${c-instLen} ${instLen}" stroke-dashoffset="${-instLen}" transform="rotate(-90 50 50)" stroke-linecap="round"/>
+  </svg>`;
+}
+function updateDebtBanner(instTotal, ccTotal){
+  document.getElementById('totalDebtAmount').textContent = fmt(instTotal+ccTotal);
+  document.getElementById('legendInstAmount').textContent = fmt(instTotal);
+  document.getElementById('legendCcAmount').textContent = fmt(ccTotal);
+  document.getElementById('debtRing').innerHTML = ringSVG(instTotal, ccTotal);
+}
+
+function renderDebtTab(){
+  const content = document.getElementById('content');
+  const inst = computeInstallmentTotals();
+  const cc = computeCreditCardTotals();
+
+  const monthRows = state.installmentMonths.slice().sort(sortByDate).map(renderInstallmentRow).join('');
+
+  content.innerHTML = `
+    <section class="card total-banner">
+      <div class="banner-label">Toplam Borç</div>
+      <div class="banner-amount" id="totalDebtAmount">${fmt(inst.grandTotal+cc.totalDebt)}</div>
+      <div class="banner-breakdown">
+        <div id="debtRing">${ringSVG(inst.grandTotal, cc.totalDebt)}</div>
+        <div class="breakdown-legend">
+          <div class="legend-item"><span class="dot dot-accent2"></span>Ek Hesap/Taksit <b id="legendInstAmount">${fmt(inst.grandTotal)}</b></div>
+          <div class="legend-item"><span class="dot dot-accent"></span>Kredi Kartı <b id="legendCcAmount">${fmt(cc.totalDebt)}</b></div>
+        </div>
+      </div>
+    </section>
+
+    ${renderSalarySummaryCard(getSortedSalaryMonths(), getDefaultSummaryId(getSortedSalaryMonths()), computeFixedTotal(), cc)}
+
+    <section class="card">
+      <div class="card-header"><h2>Ek Hesap / Kredi Taksit</h2></div>
+      <div class="chip-row">
+        ${state.installmentBanks.map(b=>`<span class="chip">${escapeHtml(b.name)}<button class="chip-remove" data-bank-id="${b.id}">×</button></span>`).join('') || ''}
+      </div>
+      <div class="add-inline">
+        <input type="text" id="newBankName" class="input-text" placeholder="Yeni banka adı">
+        <button class="btn-small" id="addBankBtn">+ Banka Ekle</button>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr>
+            <th class="sticky-col">Ay / Yıl</th>
+            ${state.installmentBanks.map(b=>`<th>${escapeHtml(b.name)}</th>`).join('')}
+            <th></th>
+          </tr></thead>
+          <tbody>${monthRows || `<tr><td class="sticky-col" colspan="${state.installmentBanks.length+2}"><div class="empty-state">Henüz ay eklenmedi.</div></td></tr>`}</tbody>
+          <tfoot><tr class="totals-row">
+            <td class="sticky-col">TOPLAM</td>
+            ${state.installmentBanks.map(b=>`<td data-bank-total="${b.id}">${fmt(inst.perBank[b.id]||0)}</td>`).join('')}
+            <td></td>
+          </tr></tfoot>
+        </table>
+      </div>
+      <div class="add-inline">
+        <input type="number" id="newInstYear" class="input-year" value="${new Date().getFullYear()}">
+        <select id="newInstMonth" class="input-select">${monthsTR.map((m,i)=>`<option value="${i}">${m}</option>`).join('')}</select>
+        <button class="btn-small" id="addInstMonthBtn">+ Ay Ekle</button>
+      </div>
+      <div class="total-row"><span>Ek Hesap/Kredi Taksit Toplamı</span><span id="instGrandTotal" class="total-amount">${fmt(inst.grandTotal)}</span></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header"><h2>Kredi Kartı Borçları</h2></div>
+      <div class="list" id="creditCardList">
+        ${state.creditCards.map(renderCreditCardRow).join('') || '<div class="empty-state">Henüz kart eklenmedi.</div>'}
+      </div>
+      <button class="add-row-btn" id="addCardBtn">+ Kart Ekle</button>
+      <div class="total-row"><span>Toplam Kredi Kartı Borcu</span><span id="ccTotalDebt" class="total-amount">${fmt(cc.totalDebt)}</span></div>
+      <div class="total-row"><span>Toplam Asgari Ödeme</span><span id="ccTotalMin" class="total-amount accent">${fmt(cc.totalMin)}</span></div>
+    </section>
+  `;
+  bindDebtEvents();
+  bindSummaryEvents();
+}
+
+function renderInstallmentRow(m){
+  return `<tr data-month-id="${m.id}">
+    <td class="sticky-col">${formatMonthLabel(m.year,m.month)}</td>
+    ${state.installmentBanks.map(b=>`<td><input type="number" class="cell-input inst-cell" data-month-id="${m.id}" data-bank-id="${b.id}" value="${m.values[b.id]||0}"></td>`).join('')}
+    <td><button class="row-delete" data-delete-month="${m.id}">×</button></td>
+  </tr>`;
+}
+function renderCreditCardRow(c){
+  const percent = Number(c.percent)||0;
+  const isCustom = c.isCustom===true || (c.isCustom===undefined && ![20,40].includes(percent));
+  const min = (Number(c.totalDebt)||0) * percent / 100;
+  return `<div class="cc-card" data-card-id="${c.id}">
+    <div class="cc-row-top">
+      <input type="text" class="input-text cc-name" data-card-id="${c.id}" placeholder="Banka adı" value="${escapeHtml(c.name)}">
+      <input type="number" class="input-number cc-debt" data-card-id="${c.id}" value="${c.totalDebt}" placeholder="Toplam borç">
+      <button class="row-delete" data-delete-card="${c.id}">×</button>
+    </div>
+    <div class="cc-row-bottom">
+      <div class="segmented-sm">
+        <button class="seg-btn-sm ${!isCustom && percent===20?'active':''}" data-card-percent="${c.id}" data-percent="20">%20</button>
+        <button class="seg-btn-sm ${!isCustom && percent===40?'active':''}" data-card-percent="${c.id}" data-percent="40">%40</button>
+        <button class="seg-btn-sm ${isCustom?'active':''}" data-card-percent="${c.id}" data-percent="custom">Diğer</button>
+        ${isCustom ? `<input type="number" class="cc-custom-percent" data-card-id="${c.id}" value="${percent}" min="0" max="100" placeholder="%">` : ''}
+      </div>
+      <span class="cc-min" data-min-for="${c.id}">Asgari: <b>${fmt(min)}</b></span>
+    </div>
+  </div>`;
+}
+
+function bindDebtEvents(){
+  // banka chip sil
+  document.querySelectorAll('.chip-remove').forEach(btn=>{
+    btn.onclick = e=>{
+      const bankId = e.target.dataset.bankId;
+      state.installmentBanks = state.installmentBanks.filter(b=>b.id!==bankId);
+      state.installmentMonths.forEach(m=> delete m.values[bankId]);
+      saveState();
+      renderDebtTab();
+    };
+  });
+  // banka ekle
+  document.getElementById('addBankBtn').onclick = ()=>{
+    const nameInput = document.getElementById('newBankName');
+    const name = nameInput.value.trim();
+    if(!name) return;
+    const newBank = {id: uid(), name};
+    state.installmentBanks.push(newBank);
+    state.installmentMonths.forEach(m=> m.values[newBank.id]=0);
+    saveState();
+    renderDebtTab();
+  };
+  // taksit hücreleri
+  document.querySelectorAll('.inst-cell').forEach(inp=>{
+    inp.oninput = e=>{
+      const monthId = e.target.dataset.monthId;
+      const bankId = e.target.dataset.bankId;
+      const m = state.installmentMonths.find(x=>x.id===monthId);
+      m.values[bankId] = parseFloat(e.target.value)||0;
+      saveState();
+      const inst = computeInstallmentTotals();
+      const bankTotalCell = document.querySelector(`[data-bank-total="${bankId}"]`);
+      if(bankTotalCell) bankTotalCell.textContent = fmt(inst.perBank[bankId]||0);
+      document.getElementById('instGrandTotal').textContent = fmt(inst.grandTotal);
+      const cc = computeCreditCardTotals();
+      updateDebtBanner(inst.grandTotal, cc.totalDebt);
+      refreshSummaryIfShown();
+    };
+  });
+  // ay satırı sil
+  document.querySelectorAll('[data-delete-month]').forEach(btn=>{
+    btn.onclick = e=>{
+      state.installmentMonths = state.installmentMonths.filter(m=>m.id!==e.target.dataset.deleteMonth);
+      saveState();
+      renderDebtTab();
+    };
+  });
+  // ay ekle
+  document.getElementById('addInstMonthBtn').onclick = ()=>{
+    const year = parseInt(document.getElementById('newInstYear').value)||new Date().getFullYear();
+    const month = parseInt(document.getElementById('newInstMonth').value);
+    if(state.installmentMonths.some(m=>m.year===year && m.month===month)){
+      alert('Bu ay zaten eklenmiş.');
+      return;
+    }
+    const values = {};
+    state.installmentBanks.forEach(b=> values[b.id]=0);
+    state.installmentMonths.push({id: uid(), year, month, values});
+    saveState();
+    renderDebtTab();
+  };
+  // her kart için ayrı asgari yüzde segmenti
+  document.querySelectorAll('[data-card-percent]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const cardId = btn.dataset.cardPercent;
+      const val = btn.dataset.percent;
+      const c = state.creditCards.find(x=>x.id===cardId);
+      if(val==='custom'){
+        c.isCustom = true;
+      } else {
+        c.isCustom = false;
+        c.percent = Number(val);
+      }
+      saveState();
+      renderDebtTab();
+    };
+  });
+  document.querySelectorAll('.cc-custom-percent').forEach(inp=>{
+    inp.oninput = e=>{
+      const c = state.creditCards.find(x=>x.id===e.target.dataset.cardId);
+      c.percent = parseFloat(e.target.value)||0;
+      c.isCustom = true;
+      saveState();
+      refreshCreditCardDerived();
+    };
+  });
+  // kart adı / borcu
+  document.querySelectorAll('.cc-name').forEach(inp=>{
+    inp.oninput = e=>{
+      const c = state.creditCards.find(x=>x.id===e.target.dataset.cardId);
+      c.name = e.target.value;
+      saveState();
+    };
+  });
+  document.querySelectorAll('.cc-debt').forEach(inp=>{
+    inp.oninput = e=>{
+      const c = state.creditCards.find(x=>x.id===e.target.dataset.cardId);
+      c.totalDebt = parseFloat(e.target.value)||0;
+      saveState();
+      refreshCreditCardDerived();
+    };
+  });
+  // kart sil
+  document.querySelectorAll('[data-delete-card]').forEach(btn=>{
+    btn.onclick = e=>{
+      state.creditCards = state.creditCards.filter(c=>c.id!==e.target.dataset.deleteCard);
+      saveState();
+      renderDebtTab();
+    };
+  });
+  // kart ekle
+  document.getElementById('addCardBtn').onclick = ()=>{
+    state.creditCards.push({id: uid(), name:'', totalDebt:0, percent:20, isCustom:false});
+    saveState();
+    renderDebtTab();
+  };
+}
+
+function refreshCreditCardDerived(){
+  const cc = computeCreditCardTotals();
+  state.creditCards.forEach(c=>{
+    const span = document.querySelector(`[data-min-for="${c.id}"]`);
+    if(span) span.innerHTML = 'Asgari: <b>' + fmt((Number(c.totalDebt)||0) * (Number(c.percent)||0) / 100) + '</b>';
+  });
+  document.getElementById('ccTotalDebt').textContent = fmt(cc.totalDebt);
+  document.getElementById('ccTotalMin').textContent = fmt(cc.totalMin);
+  const inst = computeInstallmentTotals();
+  updateDebtBanner(inst.grandTotal, cc.totalDebt);
+  refreshSummaryIfShown();
+}
+
+/* ================= ÖNGÖRÜLEN MAAŞ - GİDER ================= */
+function installmentAmountForMonth(year, month){
+  const m = state.installmentMonths.find(x=>x.year===year && x.month===month);
+  if(!m) return 0;
+  return Object.values(m.values).reduce((s,v)=> s+(Number(v)||0), 0);
+}
+function getSortedSalaryMonths(){
+  return state.salaryMonths.slice().sort(sortByDate);
+}
+function getDefaultSummaryId(sorted){
+  const now = new Date();
+  const todayEntry = sorted.find(s=> s.year===now.getFullYear() && s.month===now.getMonth());
+  return todayEntry ? todayEntry.id : (sorted.length ? sorted[sorted.length-1].id : null);
+}
+function renderSalaryTab(){
+  const content = document.getElementById('content');
+  const fixedTotal = computeFixedTotal();
+  const cc = computeCreditCardTotals();
+  const sorted = state.salaryMonths.slice().sort(sortByDate);
+
+  let sumBrut=0, sumNet=0, sumRemaining=0;
+  const rows = sorted.map(s=>{
+    const instAmount = installmentAmountForMonth(s.year, s.month);
+    const remaining = (Number(s.net)||0) - (fixedTotal + instAmount + cc.totalMin);
+    sumBrut += Number(s.brut)||0;
+    sumNet += Number(s.net)||0;
+    sumRemaining += remaining;
+    return renderSalaryRow(s, fixedTotal, instAmount, cc.totalMin, remaining);
+  }).join('');
+
+  const defaultSummaryId = getDefaultSummaryId(sorted);
+
+  content.innerHTML = `
+    ${renderSalarySummaryCard(sorted, defaultSummaryId, fixedTotal, cc)}
+    <section class="card">
+      <div class="card-header"><h2>Öngörülen Maaş - Gider</h2></div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr>
+            <th class="sticky-col">Ay / Yıl</th>
+            <th>Brüt</th><th>Net</th><th>Sabit Gider</th><th>Taksit</th><th>Kredi Kartı Asgari</th><th>Tahmini Elde Kalan</th><th></th>
+          </tr></thead>
+          <tbody id="salaryBody">${rows || '<tr><td class="sticky-col" colspan="8"><div class="empty-state">Henüz ay eklenmedi.</div></td></tr>'}</tbody>
+          <tfoot><tr class="totals-row">
+            <td class="sticky-col">TOPLAM</td>
+            <td id="salFooterBrut">${fmt(sumBrut)}</td>
+            <td id="salFooterNet">${fmt(sumNet)}</td>
+            <td colspan="3"></td>
+            <td id="salFooterRemaining" class="${sumRemaining<0?'negative':'positive'}">${fmt(sumRemaining)}</td>
+            <td></td>
+          </tr></tfoot>
+        </table>
+      </div>
+      <div class="add-inline">
+        <input type="number" id="newSalYear" class="input-year" value="${new Date().getFullYear()}">
+        <select id="newSalMonth" class="input-select">${monthsTR.map((m,i)=>`<option value="${i}">${m}</option>`).join('')}</select>
+        <button class="btn-small" id="addSalMonthBtn">+ Ay Ekle</button>
+      </div>
+    </section>
+  `;
+  bindSalaryEvents();
+  bindSummaryEvents();
+}
+function renderSalarySummaryCard(sorted, selectedId, fixedTotal, cc){
+  if(!sorted.length){
+    return `<section class="card">
+      <div class="card-header"><h2>Ay Özeti</h2></div>
+      <div class="empty-state">Özeti görmek için önce aşağıdan bir ay ekle.</div>
+    </section>`;
+  }
+  const options = sorted.map(s=>`<option value="${s.id}" ${s.id===selectedId?'selected':''}>${formatMonthLabel(s.year,s.month)}</option>`).join('');
+  return `<section class="card">
+    <div class="card-header-row">
+      <h2>Ay Özeti</h2>
+      <select id="summaryMonthSelect" class="input-select-sm">${options}</select>
+    </div>
+    <div id="summaryBody">${renderSummaryBody(selectedId, fixedTotal, cc)}</div>
+  </section>`;
+}
+function renderSummaryBody(id, fixedTotal, cc){
+  const s = state.salaryMonths.find(x=>x.id===id);
+  if(!s) return '<div class="empty-state">Ay bulunamadı.</div>';
+  const instAmount = installmentAmountForMonth(s.year, s.month);
+  const remaining = (Number(s.net)||0) - (fixedTotal + instAmount + cc.totalMin);
+  return `
+    <div class="summary-line"><span>Net Gelir</span><b class="positive">${fmt(s.net)}</b></div>
+    <div class="summary-line"><span>Sabit Gider</span><b class="negative">${fmt(fixedTotal)}</b></div>
+    <div class="summary-line"><span>Taksit Toplamı</span><b class="negative">${fmt(instAmount)}</b></div>
+    <div class="summary-line"><span>Kredi Kartı Asgari</span><b class="negative">${fmt(cc.totalMin)}</b></div>
+    <div class="summary-line summary-final"><span>Elde Kalan</span><b class="${remaining<0?'negative':'positive'}">${fmt(remaining)}</b></div>
+  `;
+}
+function bindSummaryEvents(){
+  const sel = document.getElementById('summaryMonthSelect');
+  if(!sel) return;
+  sel.onchange = e=>{
+    const fixedTotal = computeFixedTotal();
+    const cc = computeCreditCardTotals();
+    document.getElementById('summaryBody').innerHTML = renderSummaryBody(e.target.value, fixedTotal, cc);
+  };
+}
+function refreshSummaryIfShown(){
+  const sel = document.getElementById('summaryMonthSelect');
+  if(!sel) return;
+  const fixedTotal = computeFixedTotal();
+  const cc = computeCreditCardTotals();
+  document.getElementById('summaryBody').innerHTML = renderSummaryBody(sel.value, fixedTotal, cc);
+}
+function renderSalaryRow(s, fixedTotal, instAmount, ccMin, remaining){
+  return `<tr data-sal-id="${s.id}">
+    <td class="sticky-col">${formatMonthLabel(s.year,s.month)}</td>
+    <td><input type="number" class="cell-input sal-brut" data-sal-id="${s.id}" value="${s.brut}"></td>
+    <td><input type="number" class="cell-input sal-net" data-sal-id="${s.id}" value="${s.net}"></td>
+    <td class="readonly-cell">${fmt(fixedTotal)}</td>
+    <td class="readonly-cell">${fmt(instAmount)}</td>
+    <td class="readonly-cell">${fmt(ccMin)}</td>
+    <td class="readonly-cell ${remaining<0?'negative':'positive'}" data-remaining="${s.id}">${fmt(remaining)}</td>
+    <td><button class="row-delete" data-delete-sal="${s.id}">×</button></td>
+  </tr>`;
+}
+function bindSalaryEvents(){
+  document.querySelectorAll('.sal-brut, .sal-net').forEach(inp=>{
+    inp.oninput = e=>{
+      const s = state.salaryMonths.find(x=>x.id===e.target.dataset.salId);
+      if(e.target.classList.contains('sal-brut')) s.brut = parseFloat(e.target.value)||0;
+      else s.net = parseFloat(e.target.value)||0;
+      saveState();
+      recalcSalaryRow(s);
+      recalcSalaryFooter();
+      refreshSummaryIfShown();
+    };
+  });
+  document.querySelectorAll('[data-delete-sal]').forEach(btn=>{
+    btn.onclick = e=>{
+      state.salaryMonths = state.salaryMonths.filter(s=>s.id!==e.target.dataset.deleteSal);
+      saveState();
+      renderSalaryTab();
+    };
+  });
+  document.getElementById('addSalMonthBtn').onclick = ()=>{
+    const year = parseInt(document.getElementById('newSalYear').value)||new Date().getFullYear();
+    const month = parseInt(document.getElementById('newSalMonth').value);
+    if(state.salaryMonths.some(s=>s.year===year && s.month===month)){
+      alert('Bu ay zaten eklenmiş.');
+      return;
+    }
+    state.salaryMonths.push({id: uid(), year, month, brut:0, net:0});
+    saveState();
+    renderSalaryTab();
+  };
+}
+function recalcSalaryRow(s){
+  const fixedTotal = computeFixedTotal();
+  const cc = computeCreditCardTotals();
+  const instAmount = installmentAmountForMonth(s.year, s.month);
+  const remaining = (Number(s.net)||0) - (fixedTotal + instAmount + cc.totalMin);
+  const cell = document.querySelector(`[data-remaining="${s.id}"]`);
+  cell.textContent = fmt(remaining);
+  cell.className = 'readonly-cell ' + (remaining<0?'negative':'positive');
+}
+function recalcSalaryFooter(){
+  const fixedTotal = computeFixedTotal();
+  const cc = computeCreditCardTotals();
+  let sumBrut=0, sumNet=0, sumRemaining=0;
+  state.salaryMonths.forEach(s=>{
+    const instAmount = installmentAmountForMonth(s.year, s.month);
+    sumBrut += Number(s.brut)||0;
+    sumNet += Number(s.net)||0;
+    sumRemaining += (Number(s.net)||0) - (fixedTotal + instAmount + cc.totalMin);
+  });
+  document.getElementById('salFooterBrut').textContent = fmt(sumBrut);
+  document.getElementById('salFooterNet').textContent = fmt(sumNet);
+  const remEl = document.getElementById('salFooterRemaining');
+  remEl.textContent = fmt(sumRemaining);
+  remEl.className = sumRemaining<0 ? 'negative' : 'positive';
+}
+
+/* ================= AYARLAR / YEDEKLEME ================= */
+document.getElementById('settingsBtn').onclick = ()=> document.getElementById('settingsModal').classList.remove('hidden');
+document.getElementById('closeModal').onclick = ()=> document.getElementById('settingsModal').classList.add('hidden');
+document.getElementById('exportBtn').onclick = ()=>{
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date();
+  const dateStr = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  a.href = url;
+  a.download = `borc-takip-yedek-${dateStr}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+document.getElementById('importFile').onchange = e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = evt=>{
+    try{
+      const parsed = JSON.parse(evt.target.result);
+      state = parsed;
+      saveState();
+      document.getElementById('settingsModal').classList.add('hidden');
+      switchTab(currentTab);
+      alert('Yedek başarıyla yüklendi.');
+    }catch(err){
+      alert('Dosya okunamadı, geçerli bir yedek dosyası seçtiğinden emin ol.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+};
+document.getElementById('resetBtn').onclick = ()=>{
+  if(confirm('Tüm veriler silinecek. Emin misin? Önce yedek almanı öneririz.')){
+    state = defaultState();
+    saveState();
+    document.getElementById('settingsModal').classList.add('hidden');
+    switchTab(currentTab);
+  }
+};
+
+/* ================= BAŞLAT ================= */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.onclick = ()=> switchTab(btn.dataset.tab);
+});
+state = loadState();
+switchTab('debt');
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
