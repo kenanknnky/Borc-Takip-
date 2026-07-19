@@ -574,10 +574,20 @@ function installmentAmountForMonth(year, month){
 function getSortedSalaryMonths(){
   return state.salaryMonths.slice().sort(sortByDate);
 }
+function getTargetMonthYear(date){
+  // ayın 15'inden itibaren bir sonraki ay hedef ay olur (15 Temmuz-14 Ağustos -> Ağustos gibi)
+  let year = date.getFullYear();
+  let month = date.getMonth();
+  if(date.getDate() >= 15){
+    month += 1;
+    if(month > 11){ month = 0; year += 1; }
+  }
+  return {year, month};
+}
 function getDefaultSummaryId(sorted){
-  const now = new Date();
-  const todayEntry = sorted.find(s=> s.year===now.getFullYear() && s.month===now.getMonth());
-  return todayEntry ? todayEntry.id : (sorted.length ? sorted[sorted.length-1].id : null);
+  const target = getTargetMonthYear(new Date());
+  const match = sorted.find(s=> s.year===target.year && s.month===target.month);
+  return match ? match.id : (sorted.length ? sorted[sorted.length-1].id : null);
 }
 function renderSalaryTab(){
   const content = document.getElementById('content');
